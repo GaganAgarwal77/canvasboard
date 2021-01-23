@@ -1,21 +1,25 @@
 import { Component, OnInit } from '@angular/core';
+import { v4 as uuidv4 } from 'uuid';
 import {Router} from '@angular/router';
-import { Data } from 'src/interfaces/dashboard';
 import { RestService } from 'src/app/services/rest.service';
 import { DailyQuote } from 'src/interfaces/daily-quote';
+import { FilterFolderPipe } from 'src/app/shared/filter-folder.pipe';
 declare var $: any;
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss']
+  styleUrls: ['./dashboard.component.scss'],
+  providers: [FilterFolderPipe]
 })
 export class DashboardComponent implements OnInit {
 
   public quote: DailyQuote;
-  constructor(private route: Router, private apiService: RestService) {}
+  constructor(private route: Router, private apiService: RestService, private filterFolder: FilterFolderPipe) {}
+
   data: any;
   Username: string = null;
+  filterFolderName = '';
 
   ngOnInit() {
     this.gettingData();
@@ -27,13 +31,40 @@ export class DashboardComponent implements OnInit {
     const data = await response.content;
     this.data = data.folders;
     this.Username = data.user_name;
-    this.addFolders(data);
+    if (Object.keys(this.data).length === 0) {
+      const noWorkspace = 'Please add a Workspace!';
+      $('#user-folders').append(`<h5 id='not-found'>${noWorkspace}</h5>`);
+    } else {
+      this.addFolders(data);
+    }
   }
 
+  filterFolders() {
+    if (this.filterFolderName === '' && Object.keys(this.data).length === 0) {
+      $('#user-folders').html('');
+      const noWorkspace = 'Please add a Workspace!';
+      $('#user-folders').append(`<h5 id='not-found'>${noWorkspace}</h5>`);
+    } else {
+      $('#user-folders').html('');
+      let folderNames: Array<string> = [];
+      folderNames = this.filterFolder.transform(
+        this.data,
+        this.filterFolderName
+      );
+      const newData = {
+        user_name: this.Username,
+        folders: folderNames,
+      };
+      this.addFolders(newData);
+    }
+  }
   // ...............BLOCK BUILDING FUNCTION ......................
   addFolders(data) {
-    data.folders.forEach((obj) => {
-      console.log(obj);
+    if (Object.keys(data.folders).length === 0) {
+      const notFound = 'No Workspace Found!';
+      $('#user-folders').append(`<h5 id='not-found'>${notFound}</h5>`);
+    } else {
+      data.folders.forEach((obj) => {
       // Add Folders
       $('#user-folders').append(`
       <div class="folder-box shadow" id=${obj._id}>
@@ -44,7 +75,6 @@ export class DashboardComponent implements OnInit {
            1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9zM2.5 3a.5.5 0 0 0-.5.5V6h12v-.5a.5.5
            0 0 0-.5-.5H9c-.964 0-1.71-.629-2.174-1.154C6.374 3.334 5.82 3 5.264 3H2.5zM14 7H2v5.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7z"/>
         </svg>
-
         <svg id=delete-${obj._id} width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-trash-fill" fill="currentColor"
          xmlns="http://www.w3.org/2000/svg" style="float: right;">
           <path fill-rule="evenodd" d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1
@@ -90,9 +120,12 @@ export class DashboardComponent implements OnInit {
           </button>
         </div>
         </div>
+      <div style="display:flex">
       <h5 class="folder-title" id=folder-name-${obj._id}>
         <strong id=name-display-${obj._id}>${obj.folder_name}</strong>
-        <button style="border-style:none; color:rgb(99, 64, 88); outline: none; margin-left:10px;background-color:transparent"
+      </h5>
+      <button style="border-style:none; color:rgb(99, 64, 88); outline: none;
+        margin-left:1rem;margin-top:2.5rem;background-color:transparent"
         id=button-edit-name-${obj._id}>
         <svg  width="0.8em" height="0.8em" fill="currentColor" xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 388.947 388.947">
@@ -101,46 +134,52 @@ export class DashboardComponent implements OnInit {
             C386.027,77.92,386.027,64.373,377.707,56.053z"/>
         </svg>
         </button>
-      </h5>
-      <!-- <p class="folder-discription">Lorem ipsum dolor sit amet.</p> -->
-      <button class="btn btn-dark" id=button-${obj._id}>Enter</button>
+      </div>
+      <!-- <p class="folder-description">Lorem ipsum dolor sit amet.</p> -->
+      <button class="btn btn-dark" id=button-${obj._id} title ="${obj.folder_name}">Enter</button>
     </div>
       `);
 
-    // Click action to enter files folder
-      $(`#button-${obj._id}`).click( () => {
+      // Click action to enter files folder
+      $(`#button-${obj._id}`).click(() => {
         this.route.navigate([`/folder/${obj._id}`]);
       });
-    // Click action to edit the folder_name
-      $(`#button-edit-name-${obj._id}`).click( () => {
+      // Click action to edit the folder_name
+      $(`#button-edit-name-${obj._id}`).click(() => {
         const folderName = document.getElementById(`folder-name-${obj._id}`);
         const editText = document.getElementById(`edit-name-input-${obj._id}`);
+        const editButton = document.getElementById(`button-edit-name-${obj._id}`);
         if (editText.style.display === 'block') {
           editText.style.display = 'none';
           folderName.style.display = 'block';
+          editButton.style.display = 'block';
 
         } else {
           editText.style.display = 'block';
           folderName.style.display = 'none';
+          editButton.style.display = 'none';
         }
       });
-    // Click action to close the edit input
-      $(`#button-edit-name-no-${obj._id}`).click( () => {
+      // Click action to close the edit input
+      $(`#button-edit-name-no-${obj._id}`).click(() => {
         const folderName = document.getElementById(`folder-name-${obj._id}`);
         const editText = document.getElementById(`edit-name-input-${obj._id}`);
+        const editButton = document.getElementById(`button-edit-name-${obj._id}`);
         if (editText.style.display === 'block') {
           editText.style.display = 'none';
           folderName.style.display = 'block';
+          editButton.style.display = 'block';
         }
         if (document.getElementById(`new-name-text-${obj._id}`).style.borderColor === 'red') {
           document.getElementById(`new-name-text-${obj._id}`).style.borderColor = 'transparent';
         }
       });
-    // Click action to save the new edited name
-      $(`#button-edit-name-ok-${obj._id}`).click( () => {
+      // Click action to save the new edited name
+      $(`#button-edit-name-ok-${obj._id}`).click(() => {
         const newName = (document.getElementById(`new-name-text-${obj._id}`) as HTMLInputElement).value;
         const folderName = document.getElementById(`folder-name-${obj._id}`);
         const editText = document.getElementById(`edit-name-input-${obj._id}`);
+        const editButton = document.getElementById(`button-edit-name-${obj._id}`);
         if (newName === '') {      // If the new name is null then do not change the name.
           document.getElementById(`new-name-text-${obj._id}`).style.borderColor = 'red';
         } else {
@@ -149,30 +188,32 @@ export class DashboardComponent implements OnInit {
           if (editText.style.display === 'block') {
             editText.style.display = 'none';
             folderName.style.display = 'block';
+            editButton.style.display = 'block';
           }
+          this.data.find(x => x._id === obj._id).folder_name = newName;   // Changing the folder name in data variable that we used.
         }
       });
-    // Open delete popup
-      $(`#delete-${obj._id}`).click( () => {
-      const popup = document.getElementById(`delete-sure-${obj._id}`);
-      if (popup.style.display === 'block') {
-        popup.style.display = 'none';
-      } else {
-        popup.style.display = 'block';
-      }
-    });
+      // Open delete popup
+      $(`#delete-${obj._id}`).click(() => {
+        const popup = document.getElementById(`delete-sure-${obj._id}`);
+        if (popup.style.display === 'block') {
+          popup.style.display = 'none';
+        } else {
+          popup.style.display = 'block';
+        }
+      });
 
-    // Delete sure popup
+      // Delete sure popup
       $(`#delete-sure-${obj._id}`).click(() => {
-      this.deleteCard(obj._id);
-    });
+        this.deleteCard(obj._id);
+      });
 
     });
+  }
 
   }
 
   navigateToFiles(e, item) {
-    console.log('Working', item);
     this.route.navigate(['/files']);
   }
 
@@ -181,16 +222,18 @@ export class DashboardComponent implements OnInit {
   }
 
   async deleteCard(id) {
-    console.log(id);
     const response = await this.apiService.deleteFolder(id);
-    console.log(response);
     if (response.success) {
       // removing from array
       const index = this.data.findIndex((o) => {
-        return o.id === 'myid';
+        return o._id === id;
       });
       if (index !== -1) {
         this.data.splice(index, 1);
+      }
+      if (Object.keys(this.data).length === 0) {
+        const noWorkspace = 'Please add a Workspace!';
+        $('#user-folders').append(`<h5 id='not-found'>${noWorkspace}</h5>`);
       }
 
       // Removing from HTML
@@ -199,6 +242,14 @@ export class DashboardComponent implements OnInit {
   }
 
   addNewFolder(obj) {
+
+    if (this.filterFolderName !== '') {
+      this.filterFolderName = '';
+      this.filterFolders();
+    }
+    if (Object.keys(this.data).length === 0) {
+      $('#user-folders').html('');
+    }
     $('#user-folders').append(`
     <div class="folder-box shadow" id=${obj._id}>
     <div class="icons-box">
@@ -208,7 +259,6 @@ export class DashboardComponent implements OnInit {
          1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9zM2.5 3a.5.5 0 0 0-.5.5V6h12v-.5a.5.5
          0 0 0-.5-.5H9c-.964 0-1.71-.629-2.174-1.154C6.374 3.334 5.82 3 5.264 3H2.5zM14 7H2v5.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7z"/>
       </svg>
-
       <svg id=delete-${obj._id} width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-trash-fill" fill="currentColor"
        xmlns="http://www.w3.org/2000/svg" style="float: right;">
         <path fill-rule="evenodd" d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1
@@ -254,9 +304,12 @@ export class DashboardComponent implements OnInit {
           </button>
         </div>
       </div>
+      <div style="display:flex">
       <h5 class="folder-title" id=folder-name-${obj._id}>
         <strong id=name-display-${obj._id}>${obj.folder_name}</strong>
-        <button style="border-style:none; color:rgb(99, 64, 88); outline: none; margin-left:10px;background-color:transparent"
+      </h5>
+        <button style="border-style:none; color:rgb(99, 64, 88); outline: none;
+        margin-left:1rem;margin-top:2.5rem;background-color:transparent"
         id=button-edit-name-${obj._id}>
         <svg  width="0.8em" height="0.8em" fill="currentColor" xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 388.947 388.947">
@@ -265,47 +318,53 @@ export class DashboardComponent implements OnInit {
             C386.027,77.92,386.027,64.373,377.707,56.053z"/>
         </svg>
         </button>
-      </h5>
-  <!-- <p class="folder-discription">Lorem ipsum dolor sit amet.</p> -->
-  <button class="btn btn-dark" id=button-${obj._id}>Enter</button>
+      </div>
+  <!-- <p class="folder-description">Lorem ipsum dolor sit amet.</p> -->
+  <button class="btn btn-dark" id=button-${obj._id} title ="${obj.folder_name}">Enter</button>
   </div>
     `);
 
     // Click action to enter files folder
-    $(`#button-${obj._id}`).click( () => {
-        this.route.navigate([`/folder/${obj._id}`]);
+    $(`#button-${obj._id}`).click(() => {
+      this.route.navigate([`/folder/${obj._id}`]);
     });
     // Click action to edit the folder name.
-    $(`#button-edit-name-${obj._id}`).click( () => {
+    $(`#button-edit-name-${obj._id}`).click(() => {
       const folderName = document.getElementById(`folder-name-${obj._id}`);
       const editText = document.getElementById(`edit-name-input-${obj._id}`);
+      const editButton = document.getElementById(`button-edit-name-${obj._id}`);
       if (editText.style.display === 'block') {
         editText.style.display = 'none';
         folderName.style.display = 'block';
+        editButton.style.display = 'block';
 
       } else {
         editText.style.display = 'block';
         folderName.style.display = 'none';
+        editButton.style.display = 'none';
       }
     });
 
     // Click action to close the edit input
-    $(`#button-edit-name-no-${obj._id}`).click( () => {
+    $(`#button-edit-name-no-${obj._id}`).click(() => {
       const folderName = document.getElementById(`folder-name-${obj._id}`);
       const editText = document.getElementById(`edit-name-input-${obj._id}`);
+      const editButton = document.getElementById(`button-edit-name-${obj._id}`);
       if (editText.style.display === 'block') {
         editText.style.display = 'none';
         folderName.style.display = 'block';
+        editButton.style.display = 'block';
       }
       if (document.getElementById(`new-name-text-${obj._id}`).style.borderColor === 'red') {
         document.getElementById(`new-name-text-${obj._id}`).style.borderColor = 'transparent';
       }
     });
     // Click action to save the new edited name
-    $(`#button-edit-name-ok-${obj._id}`).click( () => {
+    $(`#button-edit-name-ok-${obj._id}`).click(() => {
       const newName = (document.getElementById(`new-name-text-${obj._id}`) as HTMLInputElement).value;
       const folderName = document.getElementById(`folder-name-${obj._id}`);
       const editText = document.getElementById(`edit-name-input-${obj._id}`);
+      const editButton = document.getElementById(`button-edit-name-${obj._id}`);
       if (newName === '') {      // If the new name is null then do not change the name.
         document.getElementById(`new-name-text-${obj._id}`).style.borderColor = 'red';
       } else {
@@ -314,12 +373,14 @@ export class DashboardComponent implements OnInit {
         if (editText.style.display === 'block') {
           editText.style.display = 'none';
           folderName.style.display = 'block';
+          editButton.style.display = 'block';
         }
+        this.data.find(x => x._id === obj._id).folder_name = newName;     // Changing the folder name in data variable that we used.
       }
     });
 
     // Open delete popup
-    $(`#delete-${obj._id}`).click( () => {
+    $(`#delete-${obj._id}`).click(() => {
       const popup = document.getElementById(`delete-sure-${obj._id}`);
       if (popup.style.display === 'block') {
         popup.style.display = 'none';
@@ -332,18 +393,16 @@ export class DashboardComponent implements OnInit {
     $(`#delete-sure-${obj._id}`).click(() => {
       this.deleteCard(obj._id);
     });
-
     // Push it to data array
     this.data.push(obj);
-    console.log(this.data);
   }
 
   async createFolder() {
     const folderName: any = document.getElementById('folder-name-input');
-    const folderDiscription: any = document.getElementById('folder-discription-input');
+    const folderdescription: any = document.getElementById('folder-description-input');
     const body = {
       folder_name: folderName.value,
-      folder_title: folderDiscription.value,
+      folder_title: folderdescription.value,
       folder_tag: 'folder_tag',
       is_nested_folder: false
     };
@@ -355,7 +414,7 @@ export class DashboardComponent implements OnInit {
       this.addNewFolder(response.content);
       // Empty the strings
       folderName.value = '';
-      folderDiscription.value = '';
+      folderdescription.value = '';
       // Closing popup
       $('#newCard').modal('hide');
     } else {
@@ -366,13 +425,13 @@ export class DashboardComponent implements OnInit {
 
   getQuote() {
     this.apiService.getDailyQuote()
-    .then((quote: DailyQuote) => {
-      this.quote = quote;
-    })
-    .catch((err) => {
-      // Here we store a random dummyQuote to the quote property.
-      this.quote= this.apiService.getDummyQuote();
-    });
+      .then((quote: DailyQuote) => {
+        this.quote = quote;
+      })
+      .catch((err) => {
+        // Here we store a random dummyQuote to the quote property.
+        this.quote = this.apiService.getDummyQuote();
+      });
   }
 
   async renameFolder(obj, newName) {
@@ -393,5 +452,6 @@ export class DashboardComponent implements OnInit {
     } else {
       document.getElementById('error-label').style.display = 'block';
     }
+
   }
 }

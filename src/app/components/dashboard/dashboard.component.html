@@ -3,7 +3,7 @@
 <!-- main -->
 <div class="container">
   <div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <h3 style="color: black;"><strong>Welcome {{Username}}!👋</strong></h3>
+    <h3 style="color: black;" class="block-with-username"><strong>Welcome {{Username}}!👋</strong></h3>
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
       <span aria-hidden="true">&times;</span>
     </button>
@@ -18,15 +18,21 @@
         <path fill-rule="evenodd" d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
       </svg>
       <br>
-      <!-- <p class="folder-discription">Lorem ipsum dolor sit amet.</p> -->
+      <!-- <p class="folder-description">Lorem ipsum dolor sit amet.</p> -->
       <button class="btn btn-dark mt-4" type="button" data-toggle="modal" data-target="#newCard">Add New Workspace</button>
     </div>
   </div>
 
-  <!-- <input type="text" [(ngModel)]="folderName"> -->
+  <div class="form-group mb-0" >
+    <input type="text" class="form-control"
+    [(ngModel)]="filterFolderName"
+    [ngModelOptions]="{standalone: true}"
+    (ngModelChange)="filterFolders()"
+    placeholder="Search Workspace"
+    >
+  </div>
   <!-- Folders -->
-  <div id="user-folders" class="cbff-container bd-grid mt-4">
-
+  <div id="user-folders" class="cbff-container bd-grid mt-0">
   </div>
 
 
@@ -55,12 +61,13 @@
           </div>
           <input type="text" class="form-control" aria-label="Default" aria-describedby="folder-name" id="folder-name-input">
         </div>
-        <!-- Folder discription -->
+        <!-- Folder description -->
         <div class="input-group mb-3">
           <div class="input-group-prepend">
-            <span class="input-group-text" id="folder-discription">Description</span>
+            <span class="input-group-text" id="folder-description">Description</span>
           </div>
-          <input type="text" class="form-control" aria-label="Default" aria-describedby="folder-discription" id="folder-discription-input">
+          <input type="text" class="form-control" aria-label="Default" aria-describedby="folder-description"
+            id="folder-description-input">
         </div>
 
         <!-- Error Label -->
@@ -73,11 +80,10 @@
     </div>
   </div>
 </div>
-
 </div>
 
 <!-- Quote -->
-<footer class="quote mt-1.5 pb-0">
+<footer class="quote mt-1 pb-0">
   <span class="quoteText"><img src="https://img.icons8.com/fluent-systems-filled/24/000000/quote-left.png"/>{{quote?.text}}</span>
   <span class="quoteAuthor">- {{quote?.author === "" ? 'Anonymous' : quote?.author}}</span>
 </footer>
